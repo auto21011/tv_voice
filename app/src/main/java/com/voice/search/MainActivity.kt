@@ -82,6 +82,10 @@ class MainActivity : Activity() {
                 val ready = ForegroundDetector.waitForTvBoxForeground(this, 10_000)
                 runOnUiThread {
                     if (ready) {
+                        val selfIntent = Intent(this@MainActivity, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        }
+                        startActivity(selfIntent)
                         startVoiceRecognition()
                     } else {
                         showAndFinish(getString(R.string.tvbox_timeout), 3000)
