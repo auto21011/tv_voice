@@ -24,6 +24,10 @@ jobs:
 
       - name: Build Release APK
         run: |
+          # Create gradlew if not present (gradle wrapper init)
+          if [[ ! -f "./gradlew" ]]; then
+            gradle wrapper --gradle-version=8.2
+          fi
           chmod +x ./gradlew
           ./gradlew :app:assembleRelease --no-daemon
 
