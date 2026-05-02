@@ -1,10 +1,11 @@
 package com.voice.search
 
 import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import org.vosk.Model
 import org.vosk.Recognizer
-import org.vosk.android.RecognitionListener
-import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
 import java.io.IOException
 import org.json.JSONObject
@@ -22,13 +23,19 @@ class VoiceRecognizer(
     private val silenceTimeoutMs: Long = 2000,
     private val globalTimeoutMs: Long = 20000
 ) {
-    private var speechService: SpeechService? = null
     private var model: Model? = null
     private var recognizer: Recognizer? = null
+    private var audioRecord: AudioRecord? = null
+    private var recordingThread: Thread? = null
     private var lastSpeechTimestamp = 0L
     private var silenceCheckRunning = false
     private var hasSpoken = false
     private var globalTimeoutHandler: android.os.Handler? = null
+    @Volatile private var isRunning = false
+
+    private companion object {
+        const val SAMPLE_RATE = 16000
+    }
 
     fun start() {
         StorageService.unpack(
@@ -36,12 +43,14 @@ class VoiceRecognizer(
             { model ->
                 this@VoiceRecognizer.model = model
                 try {
-                    recognizer = Recognizer(model, 16000.0f)
+                    recognizer = Recognizer(model, SAMPLE_RATE.toFloat())
+                    recognizer?.setWords(true)
+                    recognizer?.setPartialWords(true)
                 } catch (e: IOException) {
                     callback.onError("Vosk初始化失败: ${e.message}")
                     return@unpack
                 }
-                startSpeechService()
+                startRecording()
             },
             { exception ->
                 callback.onError("模型加载失败: ${exception.message}")
@@ -49,49 +58,49 @@ class VoiceRecognizer(
         )
     }
 
-    private fun startSpeechService() {
+    private fun startRecording() {
         try {
-            recognizer?.setWords(true)
-            recognizer?.setPartialWords(true)
-            speechService = SpeechService(recognizer, 16000.0f)
-            speechService?.startListening(object : RecognitionListener {
-                override fun onPartialResult(hypothesis: String?) {
-                    val text = extractPartial(hypothesis)
-                    if (text != null) {
-                        if (!hasSpoken) {
-                            hasSpoken = true
-                            cancelGlobalTimeout()
-                        }
-                        lastSpeechTimestamp = System.currentTimeMillis()
-                        callback.onPartialResult(text)
-                        startSilenceDetection()
-                    }
-                }
+            val bufferSize = AudioRecord.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
 
-                override fun onResult(hypothesis: String?) {
-                    val text = extractPartial(hypothesis)
-                    if (!text.isNullOrBlank()) {
-                        callback.onFinalResult(text)
-                    }
-                }
+            val sources = intArrayOf(
+                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.DEFAULT,
+                MediaRecorder.AudioSource.CAMCORDER,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION
+            )
 
-                override fun onFinalResult(hypothesis: String?) {
-                    val text = extractPartial(hypothesis)
-                    if (!text.isNullOrBlank()) {
-                        callback.onFinalResult(text)
+            for (source in sources) {
+                try {
+                    audioRecord = AudioRecord(
+                        source,
+                        SAMPLE_RATE,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        bufferSize
+                    )
+                    if (audioRecord?.state == AudioRecord.STATE_INITIALIZED) {
+                        break
                     }
+                    audioRecord?.release()
+                    audioRecord = null
+                } catch (e: Exception) {
+                    audioRecord?.release()
+                    audioRecord = null
                 }
+            }
 
-                override fun onError(e: Exception) {
-                    callback.onError("识别错误: ${e.message}")
-                }
+            if (audioRecord == null) {
+                callback.onError("无法初始化麦克风，请检查权限")
+                return
+            }
 
-                override fun onTimeout() {
-                    if (!hasSpoken) {
-                        callback.onSilenceDetected()
-                    }
-                }
-            })
+            isRunning = true
+            audioRecord?.startRecording()
+
             globalTimeoutHandler = android.os.Handler(android.os.Looper.getMainLooper()).apply {
                 postDelayed({
                     if (!hasSpoken) {
@@ -99,18 +108,40 @@ class VoiceRecognizer(
                     }
                 }, globalTimeoutMs)
             }
+
+            recordingThread = Thread {
+                val buffer = ShortArray(bufferSize / 2)
+                while (isRunning) {
+                    val read = audioRecord?.read(buffer, 0, buffer.size) ?: break
+                    if (read > 0 && isRunning) {
+                        recognizer?.acceptWaveForm(buffer, read)
+                        val result = recognizer?.partialResult
+                        if (!result.isNullOrEmpty()) {
+                            processResult(result)
+                        }
+                    }
+                }
+            }
+            recordingThread?.start()
         } catch (e: Exception) {
-            callback.onError("SpeechService启动失败: ${e.message}")
+            callback.onError("录音启动失败: ${e.message}")
         }
     }
 
-    private fun extractPartial(hypothesis: String?): String? {
-        if (hypothesis == null) return null
-        return try {
-            val text = JSONObject(hypothesis).optString("partial", "")
-            if (text.isEmpty()) null else text
+    private fun processResult(result: String) {
+        try {
+            val partial = JSONObject(result).optString("partial", "")
+            if (partial.isNotBlank()) {
+                if (!hasSpoken) {
+                    hasSpoken = true
+                    cancelGlobalTimeout()
+                }
+                lastSpeechTimestamp = System.currentTimeMillis()
+                callback.onPartialResult(partial)
+                startSilenceDetection()
+            }
         } catch (e: Exception) {
-            null
+            // ignore parse errors
         }
     }
 
@@ -119,7 +150,7 @@ class VoiceRecognizer(
         silenceCheckRunning = true
 
         Thread {
-            while (true) {
+            while (isRunning) {
                 try {
                     Thread.sleep(500)
                 } catch (e: InterruptedException) {
@@ -128,6 +159,17 @@ class VoiceRecognizer(
                 val elapsed = System.currentTimeMillis() - lastSpeechTimestamp
                 if (elapsed >= silenceTimeoutMs) {
                     silenceCheckRunning = false
+                    if (!isRunning) return
+                    val finalResult = recognizer?.finalResult
+                    if (!finalResult.isNullOrEmpty()) {
+                        val text = try {
+                            JSONObject(finalResult).optString("text", "")
+                        } catch (e: Exception) { "" }
+                        if (text.isNotBlank()) {
+                            callback.onFinalResult(text)
+                            return
+                        }
+                    }
                     callback.onSilenceDetected()
                     break
                 }
@@ -141,9 +183,17 @@ class VoiceRecognizer(
     }
 
     fun stop() {
+        isRunning = false
         try {
-            speechService?.stop()
-            speechService = null
+            recordingThread?.interrupt()
+            recordingThread = null
+        } catch (e: Exception) {
+            // ignore
+        }
+        try {
+            audioRecord?.stop()
+            audioRecord?.release()
+            audioRecord = null
         } catch (e: Exception) {
             // ignore
         }
