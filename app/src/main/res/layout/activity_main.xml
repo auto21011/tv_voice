@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- 上半透明区域：click to dismiss -->
+    <View
+        android:id="@+id/transparent_area"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- 底部悬浮窗 -->
+    <LinearLayout
+        android:id="@+id/bottom_panel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/panel_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingTop="24dp"
+        android:paddingBottom="32dp"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp">
+
+        <!-- 状态指示 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- 麦克风图标 -->
+            <FrameLayout
+                android:id="@+id/mic_container"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginEnd="20dp">
+
+                <ImageView
+                    android:id="@+id/iv_mic"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:src="@drawable/ic_mic"
+                    android:contentDescription="@string/listening" />
+            </FrameLayout>
+
+            <!-- 波形条 -->
+            <LinearLayout
+                android:id="@+id/wave_container"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/wave_bar_1"
+                    android:layout_width="5dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@color/wave_bar" />
+
+                <View
+                    android:id="@+id/wave_bar_2"
+                    android:layout_width="5dp"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@color/wave_bar" />
+
+                <View
+                    android:id="@+id/wave_bar_3"
+                    android:layout_width="5dp"
+                    android:layout_height="24dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@color/wave_bar" />
+
+                <View
+                    android:id="@+id/wave_bar_4"
+                    android:layout_width="5dp"
+                    android:layout_height="38dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@color/wave_bar" />
+
+                <View
+                    android:id="@+id/wave_bar_5"
+                    android:layout_width="5dp"
+                    android:layout_height="16dp"
+                    android:background="@color/wave_bar" />
+            </LinearLayout>
+
+            <!-- 识别文本区域 -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="20dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tv_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/listening"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp" />
+
+                <TextView
+                    android:id="@+id/tv_partial_result"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textColor="@color/accent"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- 底部提示 -->
+        <TextView
+            android:id="@+id/tv_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/stop_hint"
+            android:textColor="@color/text_hint"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

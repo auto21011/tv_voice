@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">语音搜索</string>
+    <string name="listening">正在聆听…</string>
+    <string name="stop_hint">停止说话后自动识别</string>
+    <string name="no_speech">未识别到语音</string>
+    <string name="no_keyword">未识别到搜索内容</string>
+    <string name="model_error">模型加载失败</string>
+    <string name="tvbox_timeout">无法启动TVBox</string>
+    <string name="permission_audio">请授予录音权限</string>
+    <string name="permission_usage">请授予使用情况访问权限</string>
+</resources>
