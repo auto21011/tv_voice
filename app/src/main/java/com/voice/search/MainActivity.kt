@@ -133,7 +133,8 @@ class MainActivity : Activity() {
                         }
                     }
                 }
-            }
+            },
+            silenceTimeoutMs = 3000
         )
         voiceRecognizer?.start()
     }

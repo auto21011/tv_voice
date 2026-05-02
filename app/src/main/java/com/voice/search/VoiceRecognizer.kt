@@ -19,13 +19,16 @@ interface VoiceRecognizerCallback {
 class VoiceRecognizer(
     private val context: Context,
     private val callback: VoiceRecognizerCallback,
-    private val silenceTimeoutMs: Long = 2000
+    private val silenceTimeoutMs: Long = 2000,
+    private val globalTimeoutMs: Long = 20000
 ) {
     private var speechService: SpeechService? = null
     private var model: Model? = null
     private var recognizer: Recognizer? = null
     private var lastSpeechTimestamp = 0L
     private var silenceCheckRunning = false
+    private var hasSpoken = false
+    private var globalTimeoutHandler: android.os.Handler? = null
 
     fun start() {
         StorageService.unpack(
@@ -48,11 +51,17 @@ class VoiceRecognizer(
 
     private fun startSpeechService() {
         try {
+            recognizer?.setWords(true)
+            recognizer?.setPartialWords(true)
             speechService = SpeechService(recognizer, 16000.0f)
             speechService?.startListening(object : RecognitionListener {
                 override fun onPartialResult(hypothesis: String?) {
                     val text = extractPartial(hypothesis)
                     if (text != null) {
+                        if (!hasSpoken) {
+                            hasSpoken = true
+                            cancelGlobalTimeout()
+                        }
                         lastSpeechTimestamp = System.currentTimeMillis()
                         callback.onPartialResult(text)
                         startSilenceDetection()
@@ -78,11 +87,18 @@ class VoiceRecognizer(
                 }
 
                 override fun onTimeout() {
-                    // SpeechService超时，由silence detection接管
+                    if (!hasSpoken) {
+                        callback.onSilenceDetected()
+                    }
                 }
             })
-            lastSpeechTimestamp = System.currentTimeMillis()
-            startSilenceDetection()
+            globalTimeoutHandler = android.os.Handler(android.os.Looper.getMainLooper()).apply {
+                postDelayed({
+                    if (!hasSpoken) {
+                        callback.onSilenceDetected()
+                    }
+                }, globalTimeoutMs)
+            }
         } catch (e: Exception) {
             callback.onError("SpeechService启动失败: ${e.message}")
         }
@@ -119,6 +135,11 @@ class VoiceRecognizer(
         }.start()
     }
 
+    private fun cancelGlobalTimeout() {
+        globalTimeoutHandler?.removeCallbacksAndMessages(null)
+        globalTimeoutHandler = null
+    }
+
     fun stop() {
         try {
             speechService?.stop()
@@ -129,6 +150,7 @@ class VoiceRecognizer(
     }
 
     fun release() {
+        cancelGlobalTimeout()
         stop()
         try {
             recognizer?.close()
