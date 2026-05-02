@@ -1,0 +1,44 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 31
+          build-tools: 31.0.0
+          target: 'default'
+
+      - name: Build Debug APK
+        run: |
+          # Build the debug APK using Gradle wrapper
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload Debug APK
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload Release APK
+        if: success()
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/*.apk
