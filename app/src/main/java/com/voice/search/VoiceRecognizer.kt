@@ -159,7 +159,7 @@ class VoiceRecognizer(
                 val elapsed = System.currentTimeMillis() - lastSpeechTimestamp
                 if (elapsed >= silenceTimeoutMs) {
                     silenceCheckRunning = false
-                    if (!isRunning) return
+                    if (!isRunning) break
                     val finalResult = recognizer?.finalResult
                     if (!finalResult.isNullOrEmpty()) {
                         val text = try {
@@ -167,7 +167,7 @@ class VoiceRecognizer(
                         } catch (e: Exception) { "" }
                         if (text.isNotBlank()) {
                             callback.onFinalResult(text)
-                            return
+                            break
                         }
                     }
                     callback.onSilenceDetected()
