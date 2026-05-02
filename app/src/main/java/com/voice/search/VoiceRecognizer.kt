@@ -30,21 +30,18 @@ class VoiceRecognizer(
     fun start() {
         StorageService.unpack(
             context, "vosk-model-small-cn", "model",
-            object : StorageService.StorageServiceCallback {
-                override fun onComplete(model: Model) {
-                    this@VoiceRecognizer.model = model
-                    try {
-                        recognizer = Recognizer(model, 16000.0f)
-                    } catch (e: IOException) {
-                        callback.onError("Vosk初始化失败: ${e.message}")
-                        return
-                    }
-                    startSpeechService()
+            { model ->
+                this@VoiceRecognizer.model = model
+                try {
+                    recognizer = Recognizer(model, 16000.0f)
+                } catch (e: IOException) {
+                    callback.onError("Vosk初始化失败: ${e.message}")
+                    return@unpack
                 }
-
-                override fun onError(message: String) {
-                    callback.onError("模型加载失败: $message")
-                }
+                startSpeechService()
+            },
+            { exception ->
+                callback.onError("模型加载失败: ${exception.message}")
             }
         )
     }
