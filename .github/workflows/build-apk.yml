@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir -p app/src/main/assets
           if [[ ! -d "app/src/main/assets/vosk-model-small-cn" ]]; then
-            curl -L -o vosk-model.zip "https://alphaceptech.com/download/vosk-model-small-cn-0.22.zip"
+            curl -L -o vosk-model.zip "https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip"
             unzip -o vosk-model.zip -d app/src/main/assets/
             rm -f vosk-model.zip
           fi
