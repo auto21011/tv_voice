@@ -33,6 +33,7 @@ jobs:
             if [[ -d "${MODEL_DIR}" && "${MODEL_DIR}" != "app/src/main/assets/vosk-model-small-cn/" ]]; then
               mv "${MODEL_DIR}" app/src/main/assets/vosk-model-small-cn
             fi
+            echo "vosk-model-small-cn-0.22" > app/src/main/assets/vosk-model-small-cn/uuid
           fi
 
       - name: Build Release APK
