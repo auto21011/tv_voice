@@ -22,6 +22,15 @@ jobs:
         with:
           api-level: 34
 
+      - name: Download Vosk Model
+        run: |
+          mkdir -p app/src/main/assets
+          if [[ ! -d "app/src/main/assets/vosk-model-small-cn" ]]; then
+            curl -L -o vosk-model.zip "https://alphaceptech.com/download/vosk-model-small-cn-0.22.zip"
+            unzip -o vosk-model.zip -d app/src/main/assets/
+            rm -f vosk-model.zip
+          fi
+
       - name: Build Release APK
         run: |
           # Create gradlew if not present (gradle wrapper init)
